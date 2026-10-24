@@ -1,0 +1,43 @@
+name: GitHub Actions - Docker Build Workflow
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-verify:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Fetch the code from the repository
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # 2. Build the Docker image tagged with the specific commit SHA
+      - name: Build Docker Image
+        run: |
+          docker build -t myapp:${{ github.sha }} .
+
+      # 3. Spin up the container in detached mode
+      - name: Run Docker Container
+        run: |
+          docker run -d -p 8080:8080 --name test-app myapp:${{ github.sha }}
+          # Wait 3 seconds to let the application boot up completely
+          sleep 3
+
+      # 4. Verify the running container using curl
+      - name: Verify Container with Curl
+        run: |
+          echo "=== Testing endpoint with curl ==="
+          curl -f http://localhost:8080
+          
+          echo "=== Container Logs ==="
+          docker logs test-app
+
+      # 5. Stop and clean up the container after test completion
+      - name: Cleanup Container
+        if: always()
+        run: |
+          docker stop test-app
+          docker rm test-app
